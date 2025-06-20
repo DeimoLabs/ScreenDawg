@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simple Image Uploader</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 p-4">
+
+  <div class="max-w-xl mx-auto bg-white p-6 rounded-2xl shadow-xl">
+    <h1 class="text-2xl font-bold mb-4 text-center">Image Uploader</h1>
+
+    <!-- Upload form -->
+    <input type="file" id="imageInput" accept="image/*" class="block w-full mb-4 p-2 border border-gray-300 rounded" />
+
+    <!-- Image preview -->
+    <div id="previewContainer" class="mb-4 hidden">
+      <p class="text-sm text-gray-600">Preview:</p>
+      <img id="imagePreview" class="max-w-full h-auto rounded shadow my-2" />
+      
+      <div class="flex items-center gap-2 mt-2">
+        <input type="text" id="imageLink" readonly class="w-full p-2 border rounded bg-gray-100 text-sm" />
+        <button onclick="copyLink()" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">Copy</button>
+      </div>
+    </div>
+
+    <!-- Previous uploads -->
+    <div id="historyContainer" class="mt-6 hidden">
+      <h2 class="text-lg font-semibold mb-2">Your Previous Uploads</h2>
+      <div id="historyGrid" class="grid grid-cols-2 gap-4"></div>
+    </div>
+  </div>
+
+  <script>
+    const input = document.getElementById('imageInput');
+    const previewContainer = document.getElementById('previewContainer');
+    const imagePreview = document.getElementById('imagePreview');
+    const imageLink = document.getElementById('imageLink');
+    const historyContainer = document.getElementById('historyContainer');
+    const historyGrid = document.getElementById('historyGrid');
+
+    input.addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (!file || !file.type.startsWith('image/')) {
+        alert('Only image files are allowed!');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const imageUrl = e.target.result;
+
+        imagePreview.src = imageUrl;
+        imageLink.value = imageUrl;
+        previewContainer.classList.remove('hidden');
+
+        saveToCookie(imageUrl);
+        renderHistory(); // Refresh history display
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function copyLink() {
+      navigator.clipboard.writeText(imageLink.value);
+      alert('Link copied to clipboard!');
+    }
+
+    function saveToCookie(url) {
+      let images = getHistory();
+      images.unshift(url);
+      if (images.length > 10) images = images.slice(0, 10); // Limit history
+      document.cookie = "images=" + encodeURIComponent(JSON.stringify(images)) + "; path=/; max-age=31536000";
+    }
+
+    function getHistory() {
+      const match = document.cookie.match(/(?:^|; )images=([^;]*)/);
+      try {
+        return match ? JSON.parse(decodeURIComponent(match[1])) : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function renderHistory() {
+      const history = getHistory();
+      if (!history.length) return;
+
+      historyContainer.classList.remove('hidden');
+      historyGrid.innerHTML = '';
+      history.forEach(url => {
+        const img = document.createElement('img');
+        img.src = url;
+        img.className = 'w-full h-auto rounded shadow';
+        historyGrid.appendChild(img);
+      });
+    }
+
+    // Load previous uploads on page load
+    window.onload = renderHistory;
+  </script>
+
+</body>
+</html>
