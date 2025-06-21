@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ScreenDawg</title>
+  <title>🖼️🐶  ScreenDawg</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 text-gray-800 p-4">
 
-  <div class="max-w-xl mx-auto bg-white p-6 rounded-2xl shadow-xl">
+  <div class="max-w-3xl mx-auto bg-white p-6 rounded-2xl shadow-xl">
     <h1 class="text-2xl font-bold mb-4 text-center">🖼️🐶  ScreenDawg</h1>
 
     <input type="file" id="imageInput" accept="image/*" class="block w-full mb-4 p-2 border border-gray-300 rounded" />
@@ -25,7 +25,7 @@
 
     <div id="historyContainer" class="mt-6 hidden">
       <h2 class="text-lg font-semibold mb-2">Your Previous Uploads</h2>
-      <div id="historyGrid" class="grid grid-cols-1 gap-4"></div>
+      <div id="historyGrid" class="flex flex-col gap-4"></div>
     </div>
   </div>
 
@@ -51,18 +51,17 @@
         method: 'POST',
         body: formData
       })
-      .then(res => res.json())
-      .then(data => {
+      .then(res => res.json().then(data => {
+        if (!res.ok) throw new Error(data.error || 'Upload failed.');
         const imageUrl = window.location.origin + data.url;
         imagePreview.src = imageUrl;
         imageLink.value = imageUrl;
         previewContainer.classList.remove('hidden');
-
         saveToCookie(imageUrl);
         renderHistory();
-      })
+      }))
       .catch(err => {
-        alert('Upload failed.');
+        alert(err.message);
         console.error(err);
       });
     });
@@ -70,7 +69,7 @@
     function copyToClipboard(inputId) {
       const input = document.getElementById(inputId);
       input.select();
-      input.setSelectionRange(0, 99999); // For mobile
+      input.setSelectionRange(0, 99999);
       document.execCommand("copy");
       alert("Copied: " + input.value);
     }
@@ -107,37 +106,75 @@
             if (res.ok) {
               validImages.push(url);
               const wrapper = document.createElement('div');
-              wrapper.className = 'bg-gray-50 p-3 rounded border shadow';
+              wrapper.className = 'flex items-center gap-4 bg-gray-50 p-3 rounded border shadow';
 
               const img = document.createElement('img');
               img.src = url;
-              img.className = 'w-full h-auto rounded mb-2';
+              img.className = 'w-[250px] h-[250px] object-contain rounded';
 
-              const urlInput = document.createElement('input');
+              const controls = document.createElement('div');
+              controls.className = 'flex-1 flex flex-col gap-2';
+
               const inputId = `historyUrl${index}`;
+              const urlInput = document.createElement('input');
               urlInput.id = inputId;
               urlInput.value = url;
               urlInput.readOnly = true;
-              urlInput.className = 'w-full p-2 border rounded bg-gray-100 text-sm mb-2';
+              urlInput.className = 'w-full p-2 border rounded bg-gray-100 text-sm';
+
+              const buttonRow = document.createElement('div');
+              buttonRow.className = 'flex gap-2';
 
               const copyBtn = document.createElement('button');
-              copyBtn.innerText = 'Copy';
+              copyBtn.innerText = 'COPY';
               copyBtn.className = 'bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600';
               copyBtn.onclick = () => copyToClipboard(inputId);
 
+              const deleteBtn = document.createElement('button');
+              deleteBtn.innerText = '🗑️';
+              deleteBtn.className = 'bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600';
+              deleteBtn.onclick = () => {
+                if (confirm("Are you sure you want to permanently delete this image?")) {
+  fetch('/delete-image', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      const filtered = getHistory().filter(item => item !== url);
+      document.cookie = "images=" + encodeURIComponent(JSON.stringify(filtered)) + "; path=/; max-age=31536000";
+      renderHistory();
+    } else {
+      alert("Error deleting image: " + (data.error || 'Unknown error'));
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    alert("Server error while deleting image.");
+  });
+                  const filtered = getHistory().filter(item => item !== url);
+                  document.cookie = "images=" + encodeURIComponent(JSON.stringify(filtered)) + "; path=/; max-age=31536000";
+                  renderHistory();
+                }
+              };
+
+              buttonRow.appendChild(copyBtn);
+              buttonRow.appendChild(deleteBtn);
+
+              controls.appendChild(urlInput);
+              controls.appendChild(buttonRow);
+
               wrapper.appendChild(img);
-              wrapper.appendChild(urlInput);
-              wrapper.appendChild(copyBtn);
+              wrapper.appendChild(controls);
               historyGrid.appendChild(wrapper);
             }
           })
-          .catch(() => {
-            // skip broken links
-          })
+          .catch(() => {})
           .finally(() => {
             checkCount++;
             if (checkCount === history.length) {
-              // Save updated valid images list to cookie
               document.cookie = "images=" + encodeURIComponent(JSON.stringify(validImages)) + "; path=/; max-age=31536000";
               if (validImages.length === 0) {
                 historyContainer.classList.add('hidden');
@@ -146,7 +183,6 @@
           });
       });
     }
-
 
     window.onload = renderHistory;
   </script>
