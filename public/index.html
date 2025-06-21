@@ -3,32 +3,29 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Simple Image Uploader</title>
+  <title>ScreenDawg</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 text-gray-800 p-4">
 
   <div class="max-w-xl mx-auto bg-white p-6 rounded-2xl shadow-xl">
-    <h1 class="text-2xl font-bold mb-4 text-center">Image Uploader</h1>
+    <h1 class="text-2xl font-bold mb-4 text-center">🖼️🐶  ScreenDawg</h1>
 
-    <!-- Upload form -->
     <input type="file" id="imageInput" accept="image/*" class="block w-full mb-4 p-2 border border-gray-300 rounded" />
 
-    <!-- Image preview -->
     <div id="previewContainer" class="mb-4 hidden">
       <p class="text-sm text-gray-600">Preview:</p>
       <img id="imagePreview" class="max-w-full h-auto rounded shadow my-2" />
-      
+
       <div class="flex items-center gap-2 mt-2">
         <input type="text" id="imageLink" readonly class="w-full p-2 border rounded bg-gray-100 text-sm" />
-        <button onclick="copyLink()" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">Copy</button>
+        <button onclick="copyToClipboard('imageLink')" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">Copy</button>
       </div>
     </div>
 
-    <!-- Previous uploads -->
     <div id="historyContainer" class="mt-6 hidden">
       <h2 class="text-lg font-semibold mb-2">Your Previous Uploads</h2>
-      <div id="historyGrid" class="grid grid-cols-2 gap-4"></div>
+      <div id="historyGrid" class="grid grid-cols-1 gap-4"></div>
     </div>
   </div>
 
@@ -47,29 +44,41 @@
         return;
       }
 
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const imageUrl = e.target.result;
+      const formData = new FormData();
+      formData.append('image', file);
 
+      fetch('/upload', {
+        method: 'POST',
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        const imageUrl = window.location.origin + data.url;
         imagePreview.src = imageUrl;
         imageLink.value = imageUrl;
         previewContainer.classList.remove('hidden');
 
         saveToCookie(imageUrl);
-        renderHistory(); // Refresh history display
-      };
-      reader.readAsDataURL(file);
+        renderHistory();
+      })
+      .catch(err => {
+        alert('Upload failed.');
+        console.error(err);
+      });
     });
 
-    function copyLink() {
-      navigator.clipboard.writeText(imageLink.value);
-      alert('Link copied to clipboard!');
+    function copyToClipboard(inputId) {
+      const input = document.getElementById(inputId);
+      input.select();
+      input.setSelectionRange(0, 99999); // For mobile
+      document.execCommand("copy");
+      alert("Copied: " + input.value);
     }
 
     function saveToCookie(url) {
       let images = getHistory();
       images.unshift(url);
-      if (images.length > 10) images = images.slice(0, 10); // Limit history
+      if (images.length > 10) images = images.slice(0, 10);
       document.cookie = "images=" + encodeURIComponent(JSON.stringify(images)) + "; path=/; max-age=31536000";
     }
 
@@ -88,15 +97,33 @@
 
       historyContainer.classList.remove('hidden');
       historyGrid.innerHTML = '';
-      history.forEach(url => {
+      history.forEach((url, index) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'bg-gray-50 p-3 rounded border shadow';
+
         const img = document.createElement('img');
         img.src = url;
-        img.className = 'w-full h-auto rounded shadow';
-        historyGrid.appendChild(img);
+        img.className = 'w-full h-auto rounded mb-2';
+
+        const urlInput = document.createElement('input');
+        const inputId = `historyUrl${index}`;
+        urlInput.id = inputId;
+        urlInput.value = url;
+        urlInput.readOnly = true;
+        urlInput.className = 'w-full p-2 border rounded bg-gray-100 text-sm mb-2';
+
+        const copyBtn = document.createElement('button');
+        copyBtn.innerText = 'Copy';
+        copyBtn.className = 'bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600';
+        copyBtn.onclick = () => copyToClipboard(inputId);
+
+        wrapper.appendChild(img);
+        wrapper.appendChild(urlInput);
+        wrapper.appendChild(copyBtn);
+        historyGrid.appendChild(wrapper);
       });
     }
 
-    // Load previous uploads on page load
     window.onload = renderHistory;
   </script>
 
