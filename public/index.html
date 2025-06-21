@@ -97,32 +97,56 @@
 
       historyContainer.classList.remove('hidden');
       historyGrid.innerHTML = '';
+
+      const validImages = [];
+
+      let checkCount = 0;
       history.forEach((url, index) => {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'bg-gray-50 p-3 rounded border shadow';
+        fetch(url, { method: 'HEAD' })
+          .then(res => {
+            if (res.ok) {
+              validImages.push(url);
+              const wrapper = document.createElement('div');
+              wrapper.className = 'bg-gray-50 p-3 rounded border shadow';
 
-        const img = document.createElement('img');
-        img.src = url;
-        img.className = 'w-full h-auto rounded mb-2';
+              const img = document.createElement('img');
+              img.src = url;
+              img.className = 'w-full h-auto rounded mb-2';
 
-        const urlInput = document.createElement('input');
-        const inputId = `historyUrl${index}`;
-        urlInput.id = inputId;
-        urlInput.value = url;
-        urlInput.readOnly = true;
-        urlInput.className = 'w-full p-2 border rounded bg-gray-100 text-sm mb-2';
+              const urlInput = document.createElement('input');
+              const inputId = `historyUrl${index}`;
+              urlInput.id = inputId;
+              urlInput.value = url;
+              urlInput.readOnly = true;
+              urlInput.className = 'w-full p-2 border rounded bg-gray-100 text-sm mb-2';
 
-        const copyBtn = document.createElement('button');
-        copyBtn.innerText = 'Copy';
-        copyBtn.className = 'bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600';
-        copyBtn.onclick = () => copyToClipboard(inputId);
+              const copyBtn = document.createElement('button');
+              copyBtn.innerText = 'Copy';
+              copyBtn.className = 'bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600';
+              copyBtn.onclick = () => copyToClipboard(inputId);
 
-        wrapper.appendChild(img);
-        wrapper.appendChild(urlInput);
-        wrapper.appendChild(copyBtn);
-        historyGrid.appendChild(wrapper);
+              wrapper.appendChild(img);
+              wrapper.appendChild(urlInput);
+              wrapper.appendChild(copyBtn);
+              historyGrid.appendChild(wrapper);
+            }
+          })
+          .catch(() => {
+            // skip broken links
+          })
+          .finally(() => {
+            checkCount++;
+            if (checkCount === history.length) {
+              // Save updated valid images list to cookie
+              document.cookie = "images=" + encodeURIComponent(JSON.stringify(validImages)) + "; path=/; max-age=31536000";
+              if (validImages.length === 0) {
+                historyContainer.classList.add('hidden');
+              }
+            }
+          });
       });
     }
+
 
     window.onload = renderHistory;
   </script>
