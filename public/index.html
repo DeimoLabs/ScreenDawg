@@ -1,252 +1,268 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>🖼️🐶 ScreenDawg</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      background: #f9f9f9;
-      padding: 20px;
-    }
-
-    .upload-box {
-      border: 2px dashed #aaa;
-      border-radius: 10px;
-      background: white;
-      text-align: center;
-      padding: 40px;
-      cursor: pointer;
-      margin-bottom: 20px;
-    }
-
-    .upload-box.dragover {
-      border-color: #007bff;
-      background: #e6f0ff;
-    }
-
-    .gallery-item {
-      display: flex;
-      align-items: center;
-      margin-top: 10px;
-      background: #fff;
-      padding: 10px;
-      border-radius: 8px;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    .gallery-item img {
-      max-width: 250px;
-      max-height: 250px;
-      margin-right: 10px;
-      border-radius: 5px;
-    }
-
-    .gallery-info {
-      flex-grow: 1;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    input[type="text"] {
-      flex-grow: 1;
-      padding: 6px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-    }
-
-    .copy-btn,
-    .delete-btn {
-      padding: 5px 10px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-
-    .copy-btn {
-      background: #007bff;
-      color: white;
-    }
-
-    .delete-btn {
-      background: #dc3545;
-      color: white;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{{SITE_NAME}}</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+  h1 a {
+    text-decoration: none;
+    color: #333;
+  }
+  #upload-area {
+    border: 2px dashed #aaa;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  #upload-area.dragover {
+    background-color: #def;
+  }
+  #upload-input {
+    display: none;
+  }
+  #gallery {
+    margin-top: 2rem;
+  }
+  .image-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+  .image-item img {
+    max-width: 250px;
+    max-height: 250px;
+    margin-right: 10px;
+    object-fit: contain;
+    border: 1px solid #ccc;
+  }
+  .image-url {
+    flex-grow: 1;
+    margin-right: 10px;
+  }
+  .image-url input {
+    width: 100%;
+    padding: 5px;
+    font-size: 0.9rem;
+  }
+  button.copy-btn {
+    background-color: #007bff;
+    border: none;
+    color: white;
+    padding: 6px 10px;
+    cursor: pointer;
+    margin-right: 5px;
+    text-transform: uppercase;
+    font-weight: bold;
+  }
+  button.delete-btn {
+    background-color: #dc3545;
+    border: none;
+    color: white;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    line-height: 1;
+  }
+</style>
 </head>
 <body>
-  <h1>🖼️🐶 ScreenDawg</h1>
 
-  <div id="uploadBox" class="upload-box">
-    Click or drag & drop an image here to upload
-    <input type="file" id="imageInput" name="image" accept="image/*" style="display:none" />
-  </div>
+<h1><a href="/">{{SITE_NAME}}</a></h1>
 
-  <div id="preview"></div>
-  <hr />
-  <h2>Your Uploaded Images</h2>
-  <div id="history"></div>
+<div id="upload-area">
+  <p>Drag & drop an image here or click to select</p>
+  <input type="file" id="upload-input" accept="image/*" />
+</div>
 
-  <script>
-    const uploadBox = document.getElementById("uploadBox");
-    const imageInput = document.getElementById("imageInput");
-    const preview = document.getElementById("preview");
-    const history = document.getElementById("history");
+<div id="gallery"></div>
 
-    uploadBox.addEventListener("click", () => imageInput.click());
+<script>
+  const uploadArea = document.getElementById('upload-area');
+  const uploadInput = document.getElementById('upload-input');
+  const gallery = document.getElementById('gallery');
 
-    uploadBox.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      uploadBox.classList.add("dragover");
+  let cookieName = 'screenDawgImages'; // default values, will be overridden
+  let cookieMaxAgeDays = 0;
+
+  // Fetch config from backend to get cookie info
+  fetch('/config')
+    .then(res => res.json())
+    .then(cfg => {
+      cookieName = cfg.cookie_name || cookieName;
+      cookieMaxAgeDays = typeof cfg.cookie_max_age_days === 'number' ? cfg.cookie_max_age_days : cookieMaxAgeDays;
+      renderGallery();
+    })
+    .catch(() => {
+      renderGallery();
     });
 
-    uploadBox.addEventListener("dragleave", () => {
-      uploadBox.classList.remove("dragover");
-    });
+  // Load user images from cookie
+  function getUserImages() {
+    const cookieData = document.cookie.split('; ').find(row => row.startsWith(cookieName + '='));
+    if (!cookieData) return [];
+    try {
+      return JSON.parse(decodeURIComponent(cookieData.split('=')[1])) || [];
+    } catch {
+      return [];
+    }
+  }
 
-    uploadBox.addEventListener("drop", (e) => {
-      e.preventDefault();
-      uploadBox.classList.remove("dragover");
-      const file = e.dataTransfer.files[0];
-      if (file) uploadImage(file);
-    });
+  // Save user images to cookie
+  function saveUserImages(images) {
+    let cookieStr = `${cookieName}=${encodeURIComponent(JSON.stringify(images))};path=/;`;
+    if (cookieMaxAgeDays === 0) {
+      cookieStr += 'expires=Fri, 31 Dec 9999 23:59:59 GMT;';
+    } else {
+      const maxAgeSeconds = cookieMaxAgeDays * 24 * 60 * 60;
+      cookieStr += `max-age=${maxAgeSeconds};`;
+    }
+    document.cookie = cookieStr;
+  }
 
-    imageInput.addEventListener("change", () => {
-      const file = imageInput.files[0];
-      if (file) uploadImage(file);
+  // Copy text to clipboard helper
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+      alert('Copied!');
+    }).catch(() => {
+      alert('Failed to copy.');
     });
+  }
 
-    function uploadImage(file) {
-      const formData = new FormData();
-      formData.append("image", file);
-      fetch("/upload", {
-        method: "POST",
-        body: formData,
-      })
-        .then((res) => res.json())
-        .then((data) => {
+  // Render gallery images
+  function renderGallery() {
+    const images = getUserImages();
+    gallery.innerHTML = '';
+
+    if (images.length === 0) {
+      gallery.innerHTML = '<p>No images uploaded yet.</p>';
+      return;
+    }
+
+    images.forEach(url => {
+      const container = document.createElement('div');
+      container.className = 'image-item';
+
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = 'Uploaded image';
+
+      const urlDiv = document.createElement('div');
+      urlDiv.className = 'image-url';
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.readOnly = true;
+      input.value = window.location.origin + url;
+      urlDiv.appendChild(input);
+
+      const copyBtn = document.createElement('button');
+      copyBtn.textContent = 'COPY';
+      copyBtn.className = 'copy-btn';
+      copyBtn.onclick = () => copyToClipboard(input.value);
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.innerHTML = '🗑️';
+      deleteBtn.className = 'delete-btn';
+      deleteBtn.onclick = () => {
+        if (!confirm('Are you sure you want to delete this image?')) return;
+        fetch('/delete-image', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        })
+        .then(res => res.json())
+        .then(data => {
           if (data.success) {
-            const url = data.url;
-            const img = document.createElement("img");
-            img.src = url;
-            preview.innerHTML = "";
-            preview.appendChild(img);
-
-            const urls = getHistory();
-            urls.push(url);
-            setHistory(urls);
-            renderHistory();
+            // Remove from cookie list
+            const updatedImages = getUserImages().filter(i => i !== url);
+            saveUserImages(updatedImages);
+            renderGallery();
           } else {
-            alert(data.error || "Upload failed");
+            alert('Error deleting image: ' + (data.error || 'Unknown error'));
           }
         })
-        .catch(() => alert("Upload error"));
-    }
+        .catch(() => alert('Error deleting image'));
+      };
 
-    function getHistory() {
-      const cookie = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("images="));
-      if (!cookie) return [];
-      try {
-        return JSON.parse(decodeURIComponent(cookie.split("=")[1]));
-      } catch {
-        return [];
+      container.appendChild(img);
+      container.appendChild(urlDiv);
+      container.appendChild(copyBtn);
+      container.appendChild(deleteBtn);
+
+      gallery.appendChild(container);
+    });
+  }
+
+  // Handle file upload
+  function uploadFile(file) {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    fetch('/upload', {
+      method: 'POST',
+      body: formData,
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success && data.url) {
+        const images = getUserImages();
+        images.unshift(data.url); // Add newest first
+        saveUserImages(images);
+        renderGallery();
+      } else {
+        alert('Upload failed: ' + (data.error || 'Unknown error'));
       }
+    })
+    .catch(() => alert('Upload failed'));
+  }
+
+  // Drag & drop handlers
+  uploadArea.addEventListener('click', () => uploadInput.click());
+
+  uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('dragover');
+  });
+
+  uploadArea.addEventListener('dragleave', () => {
+    uploadArea.classList.remove('dragover');
+  });
+
+  uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    if (e.dataTransfer.files.length) {
+      const file = e.dataTransfer.files[0];
+      if (!file.type.startsWith('image/')) {
+        alert('Please upload only image files.');
+        return;
+      }
+      uploadFile(file);
     }
+  });
 
-    function setHistory(arr) {
-      document.cookie =
-        "images=" +
-        encodeURIComponent(JSON.stringify(arr)) +
-        "; path=/; max-age=31536000";
+  // Auto-upload on file select
+  uploadInput.addEventListener('change', () => {
+    if (uploadInput.files.length) {
+      const file = uploadInput.files[0];
+      if (!file.type.startsWith('image/')) {
+        alert('Please upload only image files.');
+        return;
+      }
+      uploadFile(file);
+      uploadInput.value = ''; // reset input
     }
+  });
+</script>
 
-    function renderHistory() {
-      const urls = getHistory();
-      history.innerHTML = "";
-      const validUrls = [];
-
-      urls.forEach((url) => {
-        fetch(url, { method: "HEAD" })
-          .then((response) => {
-            if (response.ok) {
-              validUrls.push(url);
-
-              const div = document.createElement("div");
-              div.className = "gallery-item";
-
-              const img = document.createElement("img");
-              img.src = url;
-
-              const info = document.createElement("div");
-              info.className = "gallery-info";
-
-              const input = document.createElement("input");
-              input.type = "text";
-              input.value = window.location.origin + url;
-              input.readOnly = true;
-
-              const copyBtn = document.createElement("button");
-              copyBtn.textContent = "COPY";
-              copyBtn.className = "copy-btn";
-              copyBtn.onclick = () => {
-                input.select();
-                document.execCommand("copy");
-              };
-
-              const deleteBtn = document.createElement("button");
-              deleteBtn.textContent = "🗑️";
-              deleteBtn.className = "delete-btn";
-              deleteBtn.onclick = () => {
-                if (
-                  confirm("Are you sure you want to delete this image?")
-                ) {
-                  fetch("/delete-image", {
-                    method: "DELETE",
-                    headers: {
-                      "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({ url }),
-                  })
-                    .then((res) => res.json())
-                    .then((data) => {
-                      if (data.success) {
-                        const filtered = getHistory().filter(
-                          (item) => item !== url
-                        );
-                        setHistory(filtered);
-                        renderHistory();
-                      } else {
-                        alert(
-                          "Error deleting image: " +
-                            (data.error || "Unknown error")
-                        );
-                      }
-                    })
-                    .catch(() =>
-                      alert("Server error while deleting image.")
-                    );
-                }
-              };
-
-              info.append(input, copyBtn, deleteBtn);
-              div.append(img, info);
-              history.appendChild(div);
-            } else {
-              const filtered = getHistory().filter((item) => item !== url);
-              setHistory(filtered);
-            }
-          })
-          .catch(() => {
-            const filtered = getHistory().filter((item) => item !== url);
-            setHistory(filtered);
-          });
-      });
-    }
-
-    renderHistory();
-  </script>
 </body>
 </html>
