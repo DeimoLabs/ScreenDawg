@@ -1,35 +1,43 @@
 const express = require('express');
 const multer = require('multer');
-const path = require('path');
 const fs = require('fs');
+const path = require('path');
+const bodyParser = require('body-parser');
 
 const app = express();
-const bodyParser = require('body-parser');
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static('public'));
 app.use(bodyParser.json());
-app.use('/uploads', express.static('uploads'));
 
+// Ensure links.json exists
+const linksPath = path.join(__dirname, 'links.json');
+if (!fs.existsSync(linksPath)) {
+  fs.writeFileSync(linksPath, '{}');
+}
+
+// Multer setup for image uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const month = new Date().toISOString().slice(5, 7);
+    const now = new Date();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
     const dir = path.join(__dirname, 'uploads', month);
     fs.mkdirSync(dir, { recursive: true });
+    req.savedMonth = month;
     cb(null, dir);
   },
   filename: (req, file, cb) => {
-    const timestamp = Date.now();
-    const ext = path.extname(file.originalname);
-    cb(null, `${timestamp}${ext}`);
+    const ext = path.extname(file.originalname).toLowerCase();
+    const randomName = Math.random().toString(36).substring(2, 9);
+    const finalName = randomName + ext;
+    req.savedFilename = finalName;
+    cb(null, finalName);
   }
 });
 
 const upload = multer({
   storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB
-  },
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
   fileFilter: (req, file, cb) => {
     if (!file.mimetype.startsWith('image/')) {
       return cb(new Error('Only image files are allowed'));
@@ -38,50 +46,82 @@ const upload = multer({
   }
 });
 
+// Upload route
 app.post('/upload', upload.single('image'), (req, res) => {
-  const month = new Date().toISOString().slice(5, 7);
-  const filename = req.file.filename;
-  const url = `/uploads/${month}/${filename}`;
-  res.json({ url });
-});
+  const filename = req.savedFilename;
+  const month = req.savedMonth;
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  if (err.code === 'LIMIT_FILE_SIZE') {
-    return res.status(413).json({ error: 'File too large. Max size is 5MB.' });
+  let links = {};
+  if (fs.existsSync(linksPath)) {
+    links = JSON.parse(fs.readFileSync(linksPath, 'utf8'));
   }
-  if (err.message === 'Only image files are allowed') {
-    return res.status(400).json({ error: err.message });
-  }
-  console.error(err);
-  res.status(500).json({ error: 'Something went wrong.' });
+
+  links[filename] = month;
+  fs.writeFileSync(linksPath, JSON.stringify(links, null, 2));
+
+  res.json({ success: true, url: `/${filename}` });
 });
 
-app.listen(PORT, () => {
-  console.log(`ScreenDawg backend running on http://localhost:${PORT}`);
-});
-
-
+// Delete image route
 app.delete('/delete-image', (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: 'Missing image URL' });
 
   try {
-    const parsed = new URL(url);
-    const filePath = path.join(__dirname, parsed.pathname);
-    if (!filePath.startsWith(path.join(__dirname, 'uploads'))) {
-      return res.status(400).json({ error: 'Invalid image path' });
+    const parsed = new URL(url, `http://${req.headers.host}`);
+    const filename = path.basename(parsed.pathname);
+
+    if (!/^[a-zA-Z0-9]{7}\.(jpg|jpeg|png|gif|webp)$/.test(filename)) {
+      return res.status(400).json({ error: 'Invalid filename format' });
     }
 
-    fs.unlink(filePath, (err) => {
-      if (err) {
-        console.error('Error deleting file:', err);
-        return res.status(404).json({ error: 'File not found or could not be deleted' });
-      }
-      res.json({ success: true });
-    });
-  } catch (e) {
-    console.error(e);
-    res.status(400).json({ error: 'Invalid URL' });
+    const links = JSON.parse(fs.readFileSync(linksPath, 'utf8'));
+    const month = links[filename];
+    if (!month) return res.status(404).json({ error: 'Month not found for this image' });
+
+    const filePath = path.join(__dirname, 'uploads', month, filename);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
+
+    fs.unlinkSync(filePath);
+    delete links[filename];
+    fs.writeFileSync(linksPath, JSON.stringify(links, null, 2));
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error deleting image' });
   }
+});
+
+// Clean URL redirection (e.g. /abc1234.jpg)
+app.get('/:shortname', (req, res, next) => {
+  const shortname = req.params.shortname;
+  if (!/^[a-zA-Z0-9]{7}\.(jpg|jpeg|png|gif|webp)$/.test(shortname)) return next();
+
+  if (!fs.existsSync(linksPath)) return res.status(404).send("Not found");
+  const links = JSON.parse(fs.readFileSync(linksPath, 'utf8'));
+
+  const month = links[shortname];
+  if (!month) return res.status(404).send("Image not found");
+
+  const filePath = path.join(__dirname, 'uploads', month, shortname);
+  if (!fs.existsSync(filePath)) return res.status(404).send("File not found");
+
+  res.sendFile(path.resolve(filePath));
+});
+
+// Error handler for uploads
+app.use((err, req, res, next) => {
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({ error: 'File too large. Max size is 5MB.' });
+  }
+  if (err.message === 'Only image files are allowed') {
+    return res.status(415).json({ error: 'Only image uploads are allowed.' });
+  }
+  res.status(500).json({ error: 'Server error' });
+});
+
+// Start the server
+app.listen(PORT, () => {
+  console.log(`ScreenDawg backend running on http://localhost:${PORT}`);
 });
