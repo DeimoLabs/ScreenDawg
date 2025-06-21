@@ -3,12 +3,51 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const bodyParser = require('body-parser');
+const yaml = require('js-yaml');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.static('public'));
+// Load config.yaml
+const configPath = path.join(__dirname, 'config.yaml');
+let config = {
+  site_name: '🖼️🐶 ScreenDawg',
+  max_file_size_mb: 5,
+  allowed_extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+  cookie_name: 'screenDawgImages',
+  cookie_max_age_days: 0,
+};
+
+try {
+  if (fs.existsSync(configPath)) {
+    const loadedConfig = yaml.load(fs.readFileSync(configPath, 'utf8'));
+    config = { ...config, ...loadedConfig };
+  }
+} catch (e) {
+  console.error('Error loading config.yaml:', e);
+}
+
+// Middleware
 app.use(bodyParser.json());
+
+// Serve index.html dynamically with {{SITE_NAME}} replacement
+app.get('/', (req, res) => {
+  const htmlPath = path.join(__dirname, 'public', 'index.html');
+  let html = fs.readFileSync(htmlPath, 'utf8');
+  html = html.replaceAll('{{SITE_NAME}}', config.site_name);
+  res.send(html);
+});
+
+// Serve static files (JS, CSS, images, etc.)
+app.use(express.static('public'));
+
+// Endpoint to expose config to frontend (only needed config parts)
+app.get('/config', (req, res) => {
+  res.json({
+    cookie_name: config.cookie_name,
+    cookie_max_age_days: config.cookie_max_age_days,
+  });
+});
 
 // Ensure links.json exists
 const linksPath = path.join(__dirname, 'links.json');
@@ -35,12 +74,21 @@ const storage = multer.diskStorage({
   }
 });
 
+// Check extension is allowed by config
+function isAllowedExtension(filename) {
+  const ext = filename.split('.').pop().toLowerCase();
+  return config.allowed_extensions.includes(ext);
+}
+
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  limits: { fileSize: config.max_file_size_mb * 1024 * 1024 }, // From config.yaml
   fileFilter: (req, file, cb) => {
     if (!file.mimetype.startsWith('image/')) {
       return cb(new Error('Only image files are allowed'));
+    }
+    if (!isAllowedExtension(file.originalname)) {
+      return cb(new Error('File extension not allowed'));
     }
     cb(null, true);
   }
@@ -113,15 +161,18 @@ app.get('/:shortname', (req, res, next) => {
 // Error handler for uploads
 app.use((err, req, res, next) => {
   if (err.code === 'LIMIT_FILE_SIZE') {
-    return res.status(413).json({ error: 'File too large. Max size is 5MB.' });
+    return res.status(413).json({ error: `File too large. Max size is ${config.max_file_size_mb}MB.` });
   }
   if (err.message === 'Only image files are allowed') {
     return res.status(415).json({ error: 'Only image uploads are allowed.' });
   }
+  if (err.message === 'File extension not allowed') {
+    return res.status(415).json({ error: 'File extension not allowed.' });
+  }
   res.status(500).json({ error: 'Server error' });
 });
 
-// Start the server
+// Start server
 app.listen(PORT, () => {
   console.log(`ScreenDawg backend running on http://localhost:${PORT}`);
 });
