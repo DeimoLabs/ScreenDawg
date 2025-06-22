@@ -7,7 +7,11 @@ A simple, no-login, drag-and-drop image uploader with clean short links, built f
 
 ## 🚀 Live Demo
 
-Coming soon...
+Want to try it out? Upload, copy, and delete images instantly:
+
+🔗 **[https://demo.screendawg.app](https://demo.screendawg.app)**
+
+No login needed. Just drag, drop, and share.
 
 ---
 
