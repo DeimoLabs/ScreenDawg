@@ -1,1 +1,0 @@
-Default folder for uploads
