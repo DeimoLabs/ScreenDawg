@@ -1,2 +1,4 @@
 site_title: ScreenDawg
 max_upload_mb: 5
+base_url: https://demo.screendawg.app
+default_theme: dark
