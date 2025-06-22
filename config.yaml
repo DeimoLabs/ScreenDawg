@@ -1,10 +1,2 @@
-site_name: "🖼️ ScreenDawg"    # Display name of the site
-max_file_size_mb: 5             # Max upload size per file in megabytes
-allowed_extensions:
-  - jpg
-  - jpeg
-  - png
-  - gif
-  - webp
-cookie_name: "screenDawgImages" # Cookie name to track user uploads
-cookie_max_age_days: 0          # Cookie expiration in days (0 means never expire)
+site_title: ScreenDawg
+max_upload_mb: 5
