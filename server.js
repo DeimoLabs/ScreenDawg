@@ -6,29 +6,33 @@ const yaml = require("js-yaml");
 const cookieParser = require("cookie-parser");
 const { v4: uuidv4 } = require("uuid");
 
-// Load config
-const config = yaml.load(fs.readFileSync("config.yaml", "utf8"));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Create required folders
+// Load config.yaml
+const config = yaml.load(fs.readFileSync("config.yaml", "utf8"));
+const maxSizeBytes = (config.max_upload_mb || 5) * 1024 * 1024;
+const baseUrl = config.base_url || `http://localhost:${PORT}`;
+
+// Ensure folders exist
 if (!fs.existsSync("uploads")) fs.mkdirSync("uploads");
 if (!fs.existsSync("views")) fs.mkdirSync("views");
 
-// Serve static files
+// Middleware
+app.set("view engine", "ejs");
 app.use(express.static("public"));
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 app.use(cookieParser());
-app.set("view engine", "ejs");
 
-// JSON "database"
+// Database
 const dbPath = "./db.json";
-let userDB = fs.existsSync(dbPath) ? JSON.parse(fs.readFileSync(dbPath)) : {};
+let userDB = fs.existsSync(dbPath) ? JSON.parse(fs.readFileSync(dbPath, "utf8")) : {};
 function saveDB() {
   fs.writeFileSync(dbPath, JSON.stringify(userDB, null, 2));
 }
 
-// Generate monthly upload folders and filenames
+// Multer
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const folder = `uploads/${new Date().toISOString().slice(0, 7)}`;
@@ -41,16 +45,13 @@ const storage = multer.diskStorage({
     cb(null, `${random}${ext}`);
   }
 });
-const upload = multer({
-  storage,
-  limits: { fileSize: config.max_upload_mb * 1024 * 1024 }
-});
+const upload = multer({ storage, limits: { fileSize: maxSizeBytes } });
 
-// Assign or get user ID
+// Cookie-based user tracking
 app.use((req, res, next) => {
   if (!req.cookies.user_id) {
     const id = uuidv4();
-    res.cookie("user_id", id, { maxAge: 31536000000 }); // 1 year
+    res.cookie("user_id", id, { maxAge: 365 * 24 * 60 * 60 * 1000 });
     req.user_id = id;
   } else {
     req.user_id = req.cookies.user_id;
@@ -58,12 +59,12 @@ app.use((req, res, next) => {
   next();
 });
 
-// Render homepage
+// Homepage
 app.get("/", (req, res) => {
   const userId = req.user_id;
   const uploads = (userDB[userId] || [])
     .filter(entry => fs.existsSync(entry.path))
-    .sort((a, b) => b.timestamp - a.timestamp); // newest first
+    .sort((a, b) => b.timestamp - a.timestamp);
 
   res.render("index", {
     siteTitle: config.site_title,
@@ -72,14 +73,16 @@ app.get("/", (req, res) => {
   });
 });
 
-// Handle uploads
-app.post("/upload", upload.single("image"), (req, res) => {
+// Upload handler (browser vs ShareX)
+app.post("/upload", upload.single("file"), (req, res) => {
   const file = req.file;
   const userId = req.user_id;
 
   if (!file) {
-    return res.status(400).send("No file uploaded.");
+    return res.status(400).json({ message: "No file uploaded." });
   }
+
+  const deleteToken = Math.random().toString(36).substring(2, 9);
 
   if (!userDB[userId]) userDB[userId] = [];
 
@@ -87,27 +90,38 @@ app.post("/upload", upload.single("image"), (req, res) => {
     filename: file.filename,
     original: file.originalname,
     path: file.path,
-    timestamp: Date.now()
+    timestamp: Date.now(),
+    token: deleteToken
   });
 
   saveDB();
-  res.redirect("/");
+
+  const isApi = req.headers.accept?.includes("application/json") || req.get("User-Agent")?.includes("ShareX");
+
+  if (isApi) {
+    return res.json({
+      link: `${baseUrl}/${file.filename}`,
+      delete: `${baseUrl}/delete-api/${file.filename}?token=${deleteToken}`
+    });
+  } else {
+    return res.redirect("/");
+  }
 });
 
-// Handle short URL redirect
+// Short clean redirect
 app.get("/:filename", (req, res) => {
   const filename = req.params.filename;
   const allUploads = Object.values(userDB).flat();
   const match = allUploads.find(entry => entry.filename === filename);
 
   if (match && fs.existsSync(match.path)) {
-    res.sendFile(path.resolve(match.path));
-  } else {
-    res.status(404).send("Image not found.");
+    return res.sendFile(path.resolve(match.path));
   }
+
+  res.status(404).send("Image not found.");
 });
 
-// Delete image route
+// Manual delete (form)
 app.post("/delete/:filename", (req, res) => {
   const filename = req.params.filename;
   const userId = req.user_id;
@@ -125,7 +139,64 @@ app.post("/delete/:filename", (req, res) => {
   res.redirect("/");
 });
 
+// ShareX delete API (DELETE)
+app.delete("/delete-api/:filename", (req, res) => {
+  const filename = req.params.filename;
+  const token = req.query.token;
+  const allUploads = Object.entries(userDB);
+
+  for (const [userId, uploads] of allUploads) {
+    const index = uploads.findIndex(entry => entry.filename === filename);
+    if (index !== -1) {
+      if (uploads[index].token !== token) {
+        return res.status(403).json({ success: false, message: "Invalid token." });
+      }
+
+      const filePath = uploads[index].path;
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      uploads.splice(index, 1);
+      saveDB();
+      return res.status(200).json({ success: true, message: "File deleted." });
+    }
+  }
+
+  res.status(404).json({ success: false, message: "File not found." });
+});
+
+// ShareX or browser GET delete confirmation
+app.get("/delete-api/:filename", (req, res) => {
+  const filename = req.params.filename;
+  const token = req.query.token;
+  const allUploads = Object.entries(userDB);
+
+  for (const [userId, uploads] of allUploads) {
+    const index = uploads.findIndex(entry => entry.filename === filename);
+    if (index !== -1) {
+      if (uploads[index].token !== token) {
+        return res.status(403).send(`<h2>❌ Invalid token. Deletion not allowed.</h2>`);
+      }
+
+      const filePath = uploads[index].path;
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      uploads.splice(index, 1);
+      saveDB();
+      return res.send(`<h2>✅ File ${filename} deleted successfully.</h2>`);
+    }
+  }
+
+  res.status(404).send(`<h2>❌ File not found or already deleted.</h2>`);
+});
+
+// File too large handler
+app.use((err, req, res, next) => {
+  if (err.code === "LIMIT_FILE_SIZE") {
+    const msg = `File too large. Max allowed is ${config.max_upload_mb}MB.`;
+    return res.status(413).json({ message: msg });
+  }
+  next(err);
+});
+
 // Start server
 app.listen(PORT, () => {
-  console.log(`✅ ScreenDawg running on http://localhost:${PORT}`);
+  console.log(`✅ ScreenDawg running at ${baseUrl}`);
 });

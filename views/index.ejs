@@ -154,7 +154,27 @@
     footer a:hover {
       text-decoration: underline;
     }
-  </style>
+  
+    .info-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      padding: 1em;
+      margin-bottom: 2em;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+
+    .info-box ul {
+      list-style: none;
+      padding-left: 0;
+      margin: 0.5em 0 0 0;
+    }
+
+    .info-box li {
+      margin: 0.5em 0;
+    }
+
+</style>
 </head>
 <body>
   <h1>
@@ -165,9 +185,18 @@
   <!-- Upload Form -->
   <form id="uploadForm" action="/upload" method="POST" enctype="multipart/form-data">
     <p>Drag & drop an image here or click to select</p>
-    <input type="file" name="image" id="fileInput" accept="image/*" hidden required>
+    <input type="file" name="file" id="fileInput" accept="image/*" hidden required>
     <p>Max size: <%= maxUploadMb %> MB</p>
   </form>
+  <div class="info-box">
+    <p><strong>How it works:</strong></p>
+    <ul>
+      <li>🖼️ Drag and drop your image or click to upload.</li>
+      <li>🧠 We generate a short URL like <code>screendawg.app/abc123.jpg</code> that you can share.</li>
+      <li>💾 Your uploads are remembered (just on your device) — no account needed.</li>
+    </ul>
+  </div>
+
 
   <h2>Your Uploads</h2>
 
@@ -195,11 +224,15 @@
   <% } %>
 
   <footer>
-    <div class="footer-left"><%= siteTitle %> © <span id="year"></span></div>
+    <div class="footer-left">
+      <%= siteTitle %> © <span id="year"></span>
+    </div>
     <div class="footer-right">
+      <a href="/ScreenDawg.sxcu" download>📥 ShareX Uploader</a> |
       Powered by <a href="https://github.com/DeimoLabs/ScreenDawg" target="_blank">ScreenDawg</a>
     </div>
   </footer>
+
 
   <script>
     // Drag-and-drop and auto-submit
