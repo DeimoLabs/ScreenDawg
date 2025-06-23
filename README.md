@@ -36,9 +36,6 @@ No login needed. Just drag, drop, and share.
 - **🌗 Light/Dark theme toggle**  
   Toggle between dark and light UI modes. Theme preference is saved and restored on return visits.
 
-- **📅 Dynamic footer**  
-  Automatically displays the site title and year, with GitHub project credits.
-
 - **📥 ShareX integration**  
   Upload directly from your desktop using ShareX and a .sxcu config. Includes copy + delete support.
 
