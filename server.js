@@ -5,6 +5,8 @@ const path = require("path");
 const yaml = require("js-yaml");
 const cookieParser = require("cookie-parser");
 const { v4: uuidv4 } = require("uuid");
+const session = require("express-session");
+const bcrypt = require("bcrypt");
 
 const app = express();
 
@@ -13,6 +15,26 @@ const config = yaml.load(fs.readFileSync("config.yaml", "utf8"));
 const PORT = process.env.PORT || config.site?.port || 3000;
 const baseUrl = config.site?.url || `http://localhost:${PORT}`;
 const maxSizeBytes = (config.max_upload_mb || 5) * 1024 * 1024;
+
+// Load admin users or create default
+const ADMIN_USERS_FILE = "./admin_users.json";
+let adminUsers = {};
+
+function loadAdminUsers(config) {
+  if (fs.existsSync(ADMIN_USERS_FILE)) {
+    adminUsers = JSON.parse(fs.readFileSync(ADMIN_USERS_FILE, "utf8"));
+  } else {
+    const defaultUser = config.admin_default_user || "admin";
+    const defaultPass = config.admin_default_pass || "changeme";
+
+    const hashed = bcrypt.hashSync(defaultPass, 10);
+    adminUsers[defaultUser] = hashed;
+
+    fs.writeFileSync(ADMIN_USERS_FILE, JSON.stringify(adminUsers, null, 2));
+    console.log(`✅ Default admin created: ${defaultUser}`);
+  }
+}
+loadAdminUsers(config);
 
 // Ensure folders exist
 if (!fs.existsSync("uploads")) fs.mkdirSync("uploads");
@@ -24,6 +46,12 @@ app.use(express.static("public"));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
+app.use(session({
+  secret: config.session_secret,
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false } // true only if using HTTPS
+}));
 
 // Database
 const dbPath = "./db.json";
@@ -74,7 +102,7 @@ app.get("/", (req, res) => {
   });
 });
 
-// ShareX config download (.sxcu) — MUST be above /:filename
+// ShareX config download (.sxcu)
 app.get("/sharex-config.sxcu", (req, res) => {
   const sxcu = {
     Name: config.site.title || "ScreenDawg",
@@ -92,7 +120,7 @@ app.get("/sharex-config.sxcu", (req, res) => {
   res.send(JSON.stringify(sxcu, null, 2));
 });
 
-// Upload handler (browser vs ShareX)
+// Upload handler
 app.post("/upload", upload.single("file"), (req, res) => {
   const file = req.file;
   const userId = req.user_id;
@@ -102,7 +130,6 @@ app.post("/upload", upload.single("file"), (req, res) => {
   }
 
   const deleteToken = Math.random().toString(36).substring(2, 9);
-
   if (!userDB[userId]) userDB[userId] = [];
 
   userDB[userId].push({
@@ -127,7 +154,7 @@ app.post("/upload", upload.single("file"), (req, res) => {
   }
 });
 
-// Manual delete (form)
+// Manual delete
 app.post("/delete/:filename", (req, res) => {
   const filename = req.params.filename;
   const userId = req.user_id;
@@ -145,7 +172,7 @@ app.post("/delete/:filename", (req, res) => {
   res.redirect("/");
 });
 
-// ShareX delete API (DELETE)
+// ShareX delete API
 app.delete("/delete-api/:filename", (req, res) => {
   const filename = req.params.filename;
   const token = req.query.token;
@@ -169,7 +196,6 @@ app.delete("/delete-api/:filename", (req, res) => {
   res.status(404).json({ success: false, message: "File not found." });
 });
 
-// ShareX GET delete confirmation
 app.get("/delete-api/:filename", (req, res) => {
   const filename = req.params.filename;
   const token = req.query.token;
@@ -193,7 +219,36 @@ app.get("/delete-api/:filename", (req, res) => {
   res.status(404).send(`<h2>❌ File not found or already deleted.</h2>`);
 });
 
-// Short clean redirect (MUST come last)
+// ADMIN ROUTES
+app.get("/admin", (req, res) => {
+  if (req.session && req.session.admin) {
+    res.render("admin_dashboard", {
+      siteTitle: config.site.title,
+      adminUser: req.session.admin
+    });
+  } else {
+    res.render("admin_login", { siteTitle: config.site.title });
+  }
+});
+
+app.post("/admin/login", express.urlencoded({ extended: true }), (req, res) => {
+  const { username, password } = req.body;
+  const hash = adminUsers[username];
+  if (hash && bcrypt.compareSync(password, hash)) {
+    req.session.admin = username;
+    res.redirect("/admin");
+  } else {
+    res.send("❌ Invalid credentials. <a href='/admin'>Try again</a>");
+  }
+});
+
+app.get("/admin/logout", (req, res) => {
+  req.session.destroy(() => {
+    res.redirect("/admin");
+  });
+});
+
+// Short clean redirect
 app.get("/:filename", (req, res) => {
   const filename = req.params.filename;
   const allUploads = Object.values(userDB).flat();

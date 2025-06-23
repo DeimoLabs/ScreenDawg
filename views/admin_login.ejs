@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title><%= siteTitle %> Admin Login</title>
+  <meta charset="UTF-8" />
+  <style>
+    body { font-family: sans-serif; max-width: 400px; margin: 4em auto; text-align: center; }
+    input { margin: 0.5em; padding: 0.5em; width: 90%; }
+    button { padding: 0.5em 1em; margin-top: 1em; }
+  </style>
+</head>
+<body>
+  <h2><%= siteTitle %> Admin Login</h2>
+  <form method="POST" action="/admin/login">
+    <input type="text" name="username" placeholder="Username" required /><br/>
+    <input type="password" name="password" placeholder="Password" required /><br/>
+    <button type="submit">Log In</button>
+  </form>
+</body>
+</html>

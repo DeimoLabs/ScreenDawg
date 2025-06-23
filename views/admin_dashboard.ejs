@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title><%= siteTitle %> Admin Dashboard</title>
+  <meta charset="UTF-8" />
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: 2em auto; }
+    h2 { text-align: center; }
+    nav { text-align: center; margin-bottom: 2em; }
+    a.logout { color: red; text-decoration: none; margin-left: 1em; }
+    table { width: 100%; border-collapse: collapse; margin-top: 2em; }
+    th, td { border: 1px solid #ccc; padding: 0.5em; text-align: left; }
+  </style>
+</head>
+<body>
+  <h2><%= siteTitle %> Admin Dashboard</h2>
+  <nav>
+    Logged in as <strong><%= adminUser %></strong>
+    <a href="/admin/logout" class="logout">Logout</a>
+  </nav>
+
+  <p>More admin features will go here — like viewing all uploads, deleting images, pagination, hit counters, etc.</p>
+</body>
+</html>

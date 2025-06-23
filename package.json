@@ -1,28 +1,19 @@
 {
   "name": "ScreenDawg",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Your dawg for screenshots and image uploads.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
-  "keywords": [
-    "image",
-    "uploader",
-    "express",
-    "cookie",
-    "ejs",
-    "anonymous",
-    "short-url"
-  ],
-  "author": "DeimoLabs",
-  "license": "MIT",
   "dependencies": {
+    "bcrypt": "^5.1.1",
     "cookie-parser": "^1.4.6",
     "ejs": "^3.1.9",
     "express": "^4.18.2",
+    "express-session": "^1.17.3",
     "js-yaml": "^4.1.0",
     "multer": "^1.4.5-lts.1",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.0"
   }
 }
