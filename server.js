@@ -7,12 +7,12 @@ const cookieParser = require("cookie-parser");
 const { v4: uuidv4 } = require("uuid");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 // Load config.yaml
 const config = yaml.load(fs.readFileSync("config.yaml", "utf8"));
+const PORT = process.env.PORT || config.site?.port || 3000;
+const baseUrl = config.site?.url || `http://localhost:${PORT}`;
 const maxSizeBytes = (config.max_upload_mb || 5) * 1024 * 1024;
-const baseUrl = config.base_url || `http://localhost:${PORT}`;
 
 // Ensure folders exist
 if (!fs.existsSync("uploads")) fs.mkdirSync("uploads");
@@ -67,10 +67,29 @@ app.get("/", (req, res) => {
     .sort((a, b) => b.timestamp - a.timestamp);
 
   res.render("index", {
-    siteTitle: config.site_title,
+    siteTitle: config.site.title,
+    baseUrl,
     maxUploadMb: config.max_upload_mb,
     uploads
   });
+});
+
+// ShareX config download (.sxcu) — MUST be above /:filename
+app.get("/sharex-config.sxcu", (req, res) => {
+  const sxcu = {
+    Name: config.site.title || "ScreenDawg",
+    Version: "14.0.1",
+    DestinationType: "ImageUploader, FileUploader",
+    RequestMethod: "POST",
+    RequestURL: `${baseUrl}/upload`,
+    Body: "MultipartFormData",
+    FileFormName: "file",
+    URL: "{json:link}",
+    DeletionURL: "{json:delete}"
+  };
+  res.setHeader("Content-Disposition", "attachment; filename=ShareXconfig.sxcu");
+  res.setHeader("Content-Type", "application/json");
+  res.send(JSON.stringify(sxcu, null, 2));
 });
 
 // Upload handler (browser vs ShareX)
@@ -106,19 +125,6 @@ app.post("/upload", upload.single("file"), (req, res) => {
   } else {
     return res.redirect("/");
   }
-});
-
-// Short clean redirect
-app.get("/:filename", (req, res) => {
-  const filename = req.params.filename;
-  const allUploads = Object.values(userDB).flat();
-  const match = allUploads.find(entry => entry.filename === filename);
-
-  if (match && fs.existsSync(match.path)) {
-    return res.sendFile(path.resolve(match.path));
-  }
-
-  res.status(404).send("Image not found.");
 });
 
 // Manual delete (form)
@@ -163,7 +169,7 @@ app.delete("/delete-api/:filename", (req, res) => {
   res.status(404).json({ success: false, message: "File not found." });
 });
 
-// ShareX or browser GET delete confirmation
+// ShareX GET delete confirmation
 app.get("/delete-api/:filename", (req, res) => {
   const filename = req.params.filename;
   const token = req.query.token;
@@ -185,6 +191,19 @@ app.get("/delete-api/:filename", (req, res) => {
   }
 
   res.status(404).send(`<h2>❌ File not found or already deleted.</h2>`);
+});
+
+// Short clean redirect (MUST come last)
+app.get("/:filename", (req, res) => {
+  const filename = req.params.filename;
+  const allUploads = Object.values(userDB).flat();
+  const match = allUploads.find(entry => entry.filename === filename);
+
+  if (match && fs.existsSync(match.path)) {
+    return res.sendFile(path.resolve(match.path));
+  }
+
+  res.status(404).send("Image not found.");
 });
 
 // File too large handler
