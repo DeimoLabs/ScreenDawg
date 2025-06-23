@@ -15,7 +15,7 @@ No login needed. Just drag, drop, and share.
 
 ---
 
-## ✨ Features (v0.1.0)
+## ✨ Features (v0.2)
 
 - **⚡ Instant uploads**  
   Drag & drop or click to upload — no accounts required.
@@ -38,6 +38,15 @@ No login needed. Just drag, drop, and share.
 
 - **📅 Dynamic footer**  
   Automatically displays the site title and year, with GitHub project credits.
+
+- **📥 ShareX integration**  
+  Upload directly from your desktop using ShareX and a .sxcu config. Includes copy + delete support.
+
+- **🔐 Secure deletion links**  
+  Each upload includes a unique, tokenized delete link — only you or ShareX can use it. No accidental or malicious deletes.
+
+- **🧠 "How it works" info box**  
+  A friendly guide is shown below the upload form so first-time users know what’s going on.
 
 ---
 
