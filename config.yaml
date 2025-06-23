@@ -1,4 +1,5 @@
-site_title: ScreenDawg
+site:
+  title: ScreenDawg
+  url: https://demo.screendawg.app
+  port: 3000
 max_upload_mb: 5
-base_url: https://demo.screendawg.app
-default_theme: dark
