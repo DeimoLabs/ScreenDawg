@@ -15,7 +15,7 @@ No login needed. Just drag, drop, and share.
 
 ---
 
-## ✨ Features (v0.2)
+## ✨ Features (v0.2.1)
 
 - **⚡ Instant uploads**  
   Drag & drop or click to upload — no accounts required.
@@ -60,51 +60,6 @@ No login needed. Just drag, drop, and share.
 
 ---
 
-## 🛠️ Install & Run
-
-```bash
-git clone https://github.com/DeimoLabs/ScreenDawg.git
-cd ScreenDawg
-npm install
-npm start
-```
-
-Then open [http://localhost:3000](http://localhost:3000)
-
----
-
-## 🔧 Configuration
-
-Update `config.yaml`:
-
-```yaml
-site_title: ScreenDawg
-max_upload_mb: 5
-```
-
-Uploads are stored under `uploads/YYYY-MM`  
-User upload data is tracked in `db.json`.
-
----
-
-## 📈 Roadmap (v0.2+)
-
-- [ ] Markdown/HTML embed code
-- [ ] Upload progress bar
-- [ ] Admin dashboard (file explorer, cleanups)
-- [ ] Expiration + auto-deletion rules
-- [ ] ShareX uploader config support
-- [ ] Switch to SQLite with full metadata logging
-
----
-
 ## 📃 License
 
 MIT — do whatever you want, but don’t blame the dawg 🐾
-
----
-
-## 🔗 Powered by
-
-**[ScreenDawg](https://github.com/DeimoLabs/ScreenDawg)**  
-Maintained by [DeimoLabs](https://github.com/DeimoLabs)
