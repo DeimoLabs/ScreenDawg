@@ -14,7 +14,7 @@ const config = yaml.load(fs.readFileSync("config.yaml", "utf8"));
 const maxSizeBytes = (config.max_upload_mb || 5) * 1024 * 1024;
 const baseUrl = config.base_url || `http://localhost:${PORT}`;
 
-// Ensure required folders
+// Ensure folders exist
 if (!fs.existsSync("uploads")) fs.mkdirSync("uploads");
 if (!fs.existsSync("views")) fs.mkdirSync("views");
 
@@ -25,14 +25,14 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
 
-// Load or initialize database
+// Database
 const dbPath = "./db.json";
 let userDB = fs.existsSync(dbPath) ? JSON.parse(fs.readFileSync(dbPath, "utf8")) : {};
 function saveDB() {
   fs.writeFileSync(dbPath, JSON.stringify(userDB, null, 2));
 }
 
-// Multer setup
+// Multer
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const folder = `uploads/${new Date().toISOString().slice(0, 7)}`;
@@ -45,12 +45,9 @@ const storage = multer.diskStorage({
     cb(null, `${random}${ext}`);
   }
 });
-const upload = multer({
-  storage,
-  limits: { fileSize: maxSizeBytes }
-});
+const upload = multer({ storage, limits: { fileSize: maxSizeBytes } });
 
-// Assign user ID via cookie
+// Cookie-based user tracking
 app.use((req, res, next) => {
   if (!req.cookies.user_id) {
     const id = uuidv4();
@@ -76,7 +73,7 @@ app.get("/", (req, res) => {
   });
 });
 
-// Upload route with token-protected delete URL
+// Upload handler (browser vs ShareX)
 app.post("/upload", upload.single("file"), (req, res) => {
   const file = req.file;
   const userId = req.user_id;
@@ -99,13 +96,19 @@ app.post("/upload", upload.single("file"), (req, res) => {
 
   saveDB();
 
-  return res.json({
-    link: `${baseUrl}/${file.filename}`,
-    delete: `${baseUrl}/delete-api/${file.filename}?token=${deleteToken}`
-  });
+  const isApi = req.headers.accept?.includes("application/json") || req.get("User-Agent")?.includes("ShareX");
+
+  if (isApi) {
+    return res.json({
+      link: `${baseUrl}/${file.filename}`,
+      delete: `${baseUrl}/delete-api/${file.filename}?token=${deleteToken}`
+    });
+  } else {
+    return res.redirect("/");
+  }
 });
 
-// Short clean URL redirect
+// Short clean redirect
 app.get("/:filename", (req, res) => {
   const filename = req.params.filename;
   const allUploads = Object.values(userDB).flat();
@@ -118,7 +121,7 @@ app.get("/:filename", (req, res) => {
   res.status(404).send("Image not found.");
 });
 
-// Manual delete via form
+// Manual delete (form)
 app.post("/delete/:filename", (req, res) => {
   const filename = req.params.filename;
   const userId = req.user_id;
@@ -136,7 +139,7 @@ app.post("/delete/:filename", (req, res) => {
   res.redirect("/");
 });
 
-// DELETE via ShareX with token
+// ShareX delete API (DELETE)
 app.delete("/delete-api/:filename", (req, res) => {
   const filename = req.params.filename;
   const token = req.query.token;
@@ -160,7 +163,7 @@ app.delete("/delete-api/:filename", (req, res) => {
   res.status(404).json({ success: false, message: "File not found." });
 });
 
-// GET for deletion via browser
+// ShareX or browser GET delete confirmation
 app.get("/delete-api/:filename", (req, res) => {
   const filename = req.params.filename;
   const token = req.query.token;
@@ -184,7 +187,7 @@ app.get("/delete-api/:filename", (req, res) => {
   res.status(404).send(`<h2>❌ File not found or already deleted.</h2>`);
 });
 
-// Multer error handling
+// File too large handler
 app.use((err, req, res, next) => {
   if (err.code === "LIMIT_FILE_SIZE") {
     const msg = `File too large. Max allowed is ${config.max_upload_mb}MB.`;
