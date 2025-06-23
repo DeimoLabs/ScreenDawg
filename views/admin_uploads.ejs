@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title><%= siteTitle %> - Admin Uploads</title>
+  <meta charset="UTF-8" />
+  <style>
+    body {
+      font-family: monospace;
+      max-width: 900px;
+      margin: 3em auto;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 1em;
+    }
+
+    nav {
+      text-align: center;
+      margin-bottom: 2em;
+    }
+
+    nav a {
+      margin: 0 0.5em;
+      text-decoration: none;
+      font-weight: bold;
+      color: black;
+    }
+
+    nav a.logout {
+      color: red;
+    }
+
+    .upload-row {
+      display: flex;
+      align-items: center;
+      gap: 1em;
+      margin-bottom: 1em;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 0.5em;
+    }
+
+    .upload-row img {
+      max-width: 80px;
+      max-height: 80px;
+      object-fit: contain;
+      border: 1px solid #aaa;
+    }
+
+    .url-field {
+      flex-grow: 1;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      font-family: monospace;
+      padding: 0.3em;
+    }
+
+    .views {
+      font-size: 0.9em;
+      margin-top: 0.3em;
+      color: #444;
+    }
+
+    .actions {
+      display: flex;
+      gap: 0.5em;
+    }
+
+    button {
+      padding: 0.3em 0.8em;
+      margin-left: 0.5em;
+    }
+
+    .pagination {
+      text-align: center;
+      margin-top: 2em;
+    }
+
+    .pagination a {
+      margin: 0 0.3em;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    footer {
+      margin-top: 4em;
+      font-size: 0.9em;
+      text-align: center;
+      color: #666;
+    }
+
+    footer a {
+      color: inherit;
+      text-decoration: underline;
+    }
+  </style>
+  <script>
+    function copyToClipboard(id) {
+      const input = document.getElementById(id);
+      input.select();
+      input.setSelectionRange(0, 99999);
+      document.execCommand("copy");
+    }
+  </script>
+</head>
+<body>
+  <h2>Admin Uploads</h2>
+
+  <div style="text-align:center">
+    Logged in as <strong><%= adminUser %></strong>
+    <a href="/admin/logout" class="logout">Logout</a>
+  </div>
+
+  <nav>
+    <a href="/admin">Home</a> –
+    <a href="/admin/uploads">Uploads</a> –
+    <a href="/admin/password">Password</a>
+  </nav>
+
+  <% if (uploads.length === 0) { %>
+    <p>No uploads found.</p>
+  <% } else { %>
+    <% uploads.forEach((upload, i) => { %>
+      <div class="upload-row">
+        <img src="/<%= upload.filename %>" alt="preview" />
+        <div class="url-field">
+          <input type="text" id="url<%= i %>" value="<%= baseUrl + '/' + upload.filename %>" readonly />
+          <div class="views"><%= upload.views || 0 %> views</div>
+        </div>
+        <div class="actions">
+          <button onclick="copyToClipboard('url<%= i %>')">Copy</button>
+          <form method="POST" action="/admin/delete/<%= upload.filename %>" onsubmit="return confirm('Delete this image?')">
+            <button type="submit">Delete</button>
+          </form>
+        </div>
+      </div>
+    <% }) %>
+  <% } %>
+
+  <% if (totalPages && totalPages > 1) { %>
+    <div class="pagination">
+      <% for (let p = 1; p <= totalPages; p++) { %>
+        <% if (p === currentPage) { %>
+          <strong><%= p %></strong>
+        <% } else { %>
+          <a href="/admin/uploads?page=<%= p %>"><%= p %></a>
+        <% } %>
+      <% } %>
+    </div>
+  <% } %>
+
+  <footer>
+    <%= siteTitle %> – Powered by <a href="https://github.com/DeimoLabs/ScreenDawg" target="_blank">ScreenDawg</a>
+  </footer>
+</body>
+</html>
