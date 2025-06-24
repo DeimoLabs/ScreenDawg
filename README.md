@@ -15,35 +15,46 @@ No login needed. Just drag, drop, and share.
 
 ---
 
-## ✨ Features (v0.2.1)
+## ✨ Features
 
-- **⚡ Instant uploads**  
-  Drag & drop or click to upload — no accounts required.
+⚡ Instant, Anonymous Uploads
+Drag and drop or click to upload images with no login, no signup, and no hassle.
 
-- **🍪 Anonymous user tracking**  
-  Users are tracked via a unique cookie-based ID. No logins, no emails, just simple usage.
+🍪 Cookie-Based User Tracking
+Each user is assigned a unique, anonymous ID to privately track their uploads across sessions.
 
-- **📎 Clean short URLs**  
-  Each image gets a root-level short URL like `https://yourdomain.com/abc1234.jpg`  
-  (actual folder structure stays hidden).
+🔗 Clean Short URLs
+Every image gets a root-level link like https://yourdomain.com/abc1234.jpg, hiding folder structure for privacy and simplicity.
 
-- **🖼️ Auto gallery**  
-  Shows uploaded images that still exist — nothing broken or stale.
+🖼️ Auto Gallery View
+Your uploads are displayed below the uploader — only files that still exist are shown.
 
-- **📋 Copy & 🗑️ Delete controls**  
-  Each image has a full URL text field, copy button, and a delete button.
+📋 Copy & 🗑️ Delete Controls
+Each image includes a copyable link and a delete button (secured with a token).
 
-- **🌗 Light/Dark theme toggle**  
-  Toggle between dark and light UI modes. Theme preference is saved and restored on return visits.
+🌗 Light/Dark Mode Toggle
+Easily switch between light and dark themes. Your preference is remembered.
 
-- **📥 ShareX integration**  
-  Upload directly from your desktop using ShareX and a .sxcu config. Includes copy + delete support.
+📥 ShareX Integration
+Upload screenshots directly via ShareX using a downloadable .sxcu config — with copy/delete support baked in.
 
-- **🔐 Secure deletion links**  
-  Each upload includes a unique, tokenized delete link — only you or ShareX can use it. No accidental or malicious deletes.
+🔐 Secure Deletion Tokens
+Each image has a private delete URL. Only you (or ShareX) can delete the image — no login needed.
 
-- **🧠 "How it works" info box**  
-  A friendly guide is shown below the upload form so first-time users know what’s going on.
+📊 Admin Dashboard
+Admins can securely log in, view upload stats, change their password, and manage all uploads from a central panel.
+
+🖼️ Paginated Upload Manager
+Admins get a list-style gallery of all uploads (25 per page) with thumbnails, full URLs, view counters, and delete buttons.
+
+💨 Image Compression (No Resizing)
+Uploads are compressed automatically (JPEG, PNG, WebP) to save space and improve speed — without changing dimensions.
+
+👀 View Tracking (External Hits Only)
+Each image tracks how many times it’s been viewed — only from external visitors.
+
+🐶 Custom 404 Meme Page
+Missing image or bad URL? Users see a fun 404 image and their existing uploads — no dead ends.
 
 ---
 
