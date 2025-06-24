@@ -163,6 +163,12 @@
       margin-bottom: 2em;
       border-radius: 8px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      text-align: center;
+    }
+
+    .info-box img {
+      max-width: 100%;
+      border-radius: 8px;
     }
 
     .info-box ul {
@@ -189,13 +195,18 @@
     <p>Max size: <%= maxUploadMb %> MB</p>
   </form>
 
+  <!-- Info box or 404 image -->
   <div class="info-box">
-    <p><strong>How it works:</strong></p>
-    <ul>
-      <li>🖼️ Drag and drop your image or click to upload.</li>
-      <li>🧠 We generate a short URL like <code><%= baseUrl %>/abc123.jpg</code> that you can share.</li>
-      <li>💾 Your uploads are remembered (just on your device) — no account needed.</li>
-    </ul>
+    <% if (is404) { %>
+      <img src="/screendawg404.png" alt="404 Dawg">
+    <% } else { %>
+      <p><strong>How it works:</strong></p>
+      <ul>
+        <li>🖼️ Drag and drop your image or click to upload.</li>
+        <li>🧠 We generate a short URL like <code><%= baseUrl %>/abc123.jpg</code> that you can share.</li>
+        <li>💾 Your uploads are remembered (just on your device) — no account needed.</li>
+      </ul>
+    <% } %>
   </div>
 
   <h2>Your Uploads</h2>
@@ -234,7 +245,6 @@
   </footer>
 
   <script>
-    // Drag-and-drop and auto-submit
     const form = document.getElementById('uploadForm');
     const fileInput = document.getElementById('fileInput');
 
@@ -259,14 +269,12 @@
       form.submit();
     });
 
-    // Fill full image URLs
     const origin = window.location.origin;
     document.querySelectorAll('.img-link').forEach(input => {
       const filename = input.dataset.filename;
       input.value = `${origin}/${filename}`;
     });
 
-    // Copy to clipboard
     document.querySelectorAll('.copy').forEach(button => {
       button.addEventListener('click', e => {
         e.preventDefault();
@@ -278,10 +286,8 @@
       });
     });
 
-    // Dynamic Year
     document.getElementById('year').textContent = new Date().getFullYear();
 
-    // Theme toggle
     const toggle = document.getElementById("themeToggle");
     const body = document.body;
     const savedTheme = localStorage.getItem("theme");

@@ -97,7 +97,8 @@ app.get("/", (req, res) => {
     siteTitle: config.site.title,
     baseUrl,
     maxUploadMb: config.max_upload_mb,
-    uploads
+    uploads,
+    is404: false
   });
 });
 
@@ -151,7 +152,7 @@ app.post("/upload", upload.single("file"), (req, res) => {
   }
 });
 
-// Manual delete
+// Delete logic
 function deleteByFilename(filename) {
   for (const [userId, uploads] of Object.entries(userDB)) {
     if (!Array.isArray(uploads)) continue;
@@ -178,7 +179,6 @@ app.post("/delete/:filename", (req, res) => {
   res.redirect("/");
 });
 
-// ShareX delete API
 app.delete("/delete-api/:filename", (req, res) => {
   const { filename } = req.params;
   const token = req.query.token;
@@ -207,7 +207,7 @@ app.get("/delete-api/:filename", (req, res) => {
   res.status(403).send(`<h2>❌ Invalid token or file not found.</h2>`);
 });
 
-// Admin dashboard
+// Admin routes
 app.get("/admin", (req, res) => {
   if (!req.session?.admin) return res.render("admin_login", { siteTitle: config.site.title });
 
@@ -236,7 +236,6 @@ app.get("/admin", (req, res) => {
   });
 });
 
-// Admin auth
 app.post("/admin/login", (req, res) => {
   const { username, password } = req.body;
   const hash = adminUsers[username];
@@ -252,7 +251,6 @@ app.get("/admin/logout", (req, res) => {
   req.session.destroy(() => res.redirect("/admin"));
 });
 
-// Admin password
 app.get("/admin/password", (req, res) => {
   if (!req.session?.admin) return res.redirect("/admin");
   res.render("admin_password", {
@@ -287,7 +285,6 @@ app.post("/admin/password", (req, res) => {
   res.render("admin_password", { siteTitle: config.site.title, adminUser: username, message: "✅ Password changed successfully." });
 });
 
-// Admin uploads (paginated)
 app.get("/admin/uploads", (req, res) => {
   if (!req.session?.admin) return res.redirect("/admin");
 
@@ -321,7 +318,7 @@ app.post("/admin/delete/:filename", (req, res) => {
   res.redirect("/admin/uploads");
 });
 
-// Short clean URL — increment views ONLY from external sources
+// Short clean URL — view counting
 app.get("/:filename", (req, res) => {
   const filename = req.params.filename;
   const allUploads = Object.values(userDB).flat();
@@ -337,15 +334,42 @@ app.get("/:filename", (req, res) => {
     return res.sendFile(path.resolve(match.path));
   }
 
-  res.status(404).send("Image not found.");
+  const userId = req.user_id;
+  const uploads = (userDB[userId] || [])
+    .filter(entry => fs.existsSync(entry.path))
+    .sort((a, b) => b.timestamp - a.timestamp);
+
+  res.status(404).render("index", {
+    siteTitle: config.site.title,
+    baseUrl,
+    maxUploadMb: config.max_upload_mb,
+    uploads,
+    is404: true
+  });
 });
 
-// Error handler for file too large
+// File too large error
 app.use((err, req, res, next) => {
   if (err.code === "LIMIT_FILE_SIZE") {
     return res.status(413).json({ message: `File too large. Max allowed is ${config.max_upload_mb}MB.` });
   }
   next(err);
+});
+
+// Catch-all 404
+app.use((req, res) => {
+  const userId = req.user_id;
+  const uploads = (userDB[userId] || [])
+    .filter(entry => fs.existsSync(entry.path))
+    .sort((a, b) => b.timestamp - a.timestamp);
+
+  res.status(404).render("index", {
+    siteTitle: config.site.title,
+    baseUrl,
+    maxUploadMb: config.max_upload_mb,
+    uploads,
+    is404: true
+  });
 });
 
 // Start server
