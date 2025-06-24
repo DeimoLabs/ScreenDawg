@@ -1,6 +1,6 @@
 {
   "name": "ScreenDawg",
-  "version": "0.2.6b",
+  "version": "0.3",
   "description": "Your dawg for screenshots and image uploads.",
   "main": "server.js",
   "scripts": {
