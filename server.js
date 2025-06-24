@@ -7,6 +7,7 @@ const cookieParser = require("cookie-parser");
 const { v4: uuidv4 } = require("uuid");
 const session = require("express-session");
 const bcrypt = require("bcrypt");
+const sharp = require("sharp");
 
 const app = express();
 
@@ -59,7 +60,7 @@ function saveDB() {
   fs.writeFileSync(dbPath, JSON.stringify(userDB, null, 2));
 }
 
-// Multer setup
+// Multer
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const folder = `uploads/${new Date().toISOString().slice(0, 7)}`;
@@ -120,11 +121,27 @@ app.get("/sharex-config.sxcu", (req, res) => {
   res.send(JSON.stringify(sxcu, null, 2));
 });
 
-// Upload handler
-app.post("/upload", upload.single("file"), (req, res) => {
+// Upload with Sharp compression
+app.post("/upload", upload.single("file"), async (req, res) => {
   const file = req.file;
   const userId = req.user_id;
   if (!file) return res.status(400).json({ message: "No file uploaded." });
+
+  try {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ext === ".jpg" || ext === ".jpeg") {
+      const buffer = await sharp(file.path).jpeg({ quality: 80 }).toBuffer();
+      fs.writeFileSync(file.path, buffer);
+    } else if (ext === ".png") {
+      const buffer = await sharp(file.path).png({ compressionLevel: 9 }).toBuffer();
+      fs.writeFileSync(file.path, buffer);
+    } else if (ext === ".webp") {
+      const buffer = await sharp(file.path).webp({ quality: 80 }).toBuffer();
+      fs.writeFileSync(file.path, buffer);
+    }
+  } catch (err) {
+    console.error("Image compression error:", err);
+  }
 
   const deleteToken = Math.random().toString(36).substring(2, 9);
   if (!userDB[userId]) userDB[userId] = [];
@@ -151,7 +168,6 @@ app.post("/upload", upload.single("file"), (req, res) => {
     return res.redirect("/");
   }
 });
-
 // Delete logic
 function deleteByFilename(filename) {
   for (const [userId, uploads] of Object.entries(userDB)) {
@@ -173,9 +189,7 @@ app.post("/delete/:filename", (req, res) => {
   const filename = req.params.filename;
   const userId = req.user_id;
   const index = (userDB[userId] || []).findIndex(entry => entry.filename === filename);
-  if (index !== -1) {
-    deleteByFilename(filename);
-  }
+  if (index !== -1) deleteByFilename(filename);
   res.redirect("/");
 });
 
@@ -275,7 +289,7 @@ app.post("/admin/password", (req, res) => {
     return res.render("admin_password", { siteTitle: config.site.title, adminUser: username, message: "❌ New passwords do not match." });
   }
 
-  const strongRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+  const strongRegex = /^(?=.*[A-Za-z])(?=.*\\d)(?=.*[^A-Za-z\\d]).{8,}$/;
   if (!strongRegex.test(newpass)) {
     return res.render("admin_password", { siteTitle: config.site.title, adminUser: username, message: "❌ Password must be at least 8 characters with a letter, number, and special character." });
   }
@@ -318,7 +332,7 @@ app.post("/admin/delete/:filename", (req, res) => {
   res.redirect("/admin/uploads");
 });
 
-// Short clean URL — view counting
+// Short clean redirect + view count (external only)
 app.get("/:filename", (req, res) => {
   const filename = req.params.filename;
   const allUploads = Object.values(userDB).flat();
@@ -348,7 +362,7 @@ app.get("/:filename", (req, res) => {
   });
 });
 
-// File too large error
+// Upload too large error
 app.use((err, req, res, next) => {
   if (err.code === "LIMIT_FILE_SIZE") {
     return res.status(413).json({ message: `File too large. Max allowed is ${config.max_upload_mb}MB.` });
