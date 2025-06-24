@@ -1,5 +1,13 @@
 site:
   title: ScreenDawg
-  url: https://demo.screendawg.app
   port: 3000
+  url: http://demo.screendawg.app
+
 max_upload_mb: 5
+
+# Admin configuration
+admin_default_user: admin
+admin_default_pass: changeme
+
+# Session secret for signing cookies (CHANGE THIS to a random string!)
+session_secret: "REPLACE_ME_WITH_A_SECURE_RANDOM_STRING"

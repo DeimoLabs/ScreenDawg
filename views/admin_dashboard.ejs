@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title><%= siteTitle %> Admin Dashboard</title>
+  <meta charset="UTF-8" />
+  <style>
+    body {
+      font-family: monospace;
+      max-width: 900px;
+      margin: 3em auto;
+      text-align: center;
+    }
+
+    h2 {
+      font-weight: bold;
+      margin-bottom: 0.3em;
+    }
+
+    nav {
+      margin-bottom: 1em;
+    }
+
+    nav a {
+      text-decoration: none;
+      margin: 0 0.5em;
+      font-weight: bold;
+      color: black;
+    }
+
+    nav a.logout {
+      color: red;
+    }
+
+    .stats {
+      margin: 2em auto;
+      border-top: 1px solid #ccc;
+      padding-top: 1em;
+    }
+
+    .stats div {
+      margin: 0.5em 0;
+      font-size: 1.1em;
+    }
+
+    footer {
+      margin-top: 4em;
+      font-size: 0.9em;
+      color: #666;
+    }
+
+    footer a {
+      color: inherit;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <h2><%= siteTitle %> Admin Dashboard</h2>
+
+  <div>
+    Logged in as <strong><%= adminUser %></strong>
+    <a href="/admin/logout" class="logout">Logout</a>
+  </div>
+
+  <nav>
+    <a href="/admin">Home</a> –
+    <a href="/admin/uploads">Uploads</a> –
+    <a href="/admin/password">Password</a>
+  </nav>
+
+  <div class="stats">
+    <div><strong>Image Uploads:</strong> <%= stats.totalUploads %></div>
+    <div><strong>Image Views:</strong> <%= stats.totalViews %></div>
+    <div><strong>Deleted Images:</strong> <%= stats.deletedCount %></div>
+  </div>
+
+  <footer>
+    <%= siteTitle %> – Powered by <a href="https://github.com/DeimoLabs/ScreenDawg" target="_blank">ScreenDawg</a>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title><%= siteTitle %> Admin Login</title>
+  <meta charset="UTF-8" />
+  <style>
+    body {
+      font-family: monospace;
+      max-width: 400px;
+      margin: 4em auto;
+      text-align: center;
+    }
+
+    h2 {
+      font-weight: bold;
+      margin-bottom: 1em;
+    }
+
+    input {
+      margin: 0.5em;
+      padding: 0.5em;
+      width: 90%;
+    }
+
+    button {
+      padding: 0.5em 1em;
+      margin-top: 1em;
+    }
+
+    footer {
+      margin-top: 4em;
+      font-size: 0.9em;
+      color: #666;
+    }
+
+    footer a {
+      color: inherit;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <h2><%= siteTitle %> Admin Login</h2>
+
+  <form method="POST" action="/admin/login">
+    <input type="text" name="username" placeholder="Username" required /><br/>
+    <input type="password" name="password" placeholder="Password" required /><br/>
+    <button type="submit">Log In</button>
+  </form>
+
+  <footer>
+    <%= siteTitle %> – Powered by <a href="https://github.com/DeimoLabs/ScreenDawg" target="_blank">ScreenDawg</a>
+  </footer>
+</body>
+</html>
